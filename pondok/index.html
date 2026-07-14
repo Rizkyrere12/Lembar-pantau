@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dashboard — Sistem Pondok</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Poppins', 'sans-serif'] },
+        colors: {
+          hijau: { DEFAULT: '#059669', dark: '#047857', soft: '#d1fae5' },
+          emas: { DEFAULT: '#D4AF37', soft: '#faf3d9' }
+        }
+      }
+    }
+  };
+</script>
+<style>
+  body{ background:#f6f7f6; }
+  .dark body{ background:#0b1210; }
+  ::-webkit-scrollbar{ height:6px; width:6px; }
+  .chip.active{ background:#059669; color:#fff; border-color:transparent; }
+  .santri-card{ animation: fadeIn .25s ease both; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .skel{ background: linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 37%,#e5e7eb 63%); background-size:400% 100%; animation: skel 1.4s ease infinite; }
+  .dark .skel{ background: linear-gradient(90deg,#1e293b 25%,#334155 37%,#1e293b 63%); background-size:400% 100%; }
+  @keyframes skel{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
+</style>
+</head>
+<body class="min-h-screen font-sans text-slate-800 dark:text-slate-100 pb-10">
+
+<!-- Header -->
+<header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-4 py-3">
+  <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-hijau flex items-center justify-center text-lg">🕌</div>
+      <div>
+        <div class="font-bold text-sm leading-none">Dashboard Pondok</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="userGreeting">Memuat...</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="darkToggle" class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm border border-slate-200 dark:border-slate-700">🌙</button>
+      <button id="logoutBtn" class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm border border-slate-200 dark:border-slate-700" title="Keluar">⏻</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 pt-5">
+
+  <!-- Stat cards -->
+  <div class="grid grid-cols-3 gap-3 mb-5">
+    <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5">
+      <div class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Total Santri</div>
+      <div class="text-xl sm:text-2xl font-extrabold" id="statTotalSantri">–</div>
+    </div>
+    <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5">
+      <div class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Total Capaian</div>
+      <div class="text-xl sm:text-2xl font-extrabold text-hijau" id="statTotalJuz">–</div>
+    </div>
+    <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5">
+      <div class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Rata² Progres</div>
+      <div class="text-xl sm:text-2xl font-extrabold text-emas" id="statRataProgres">–</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
+    <div class="lg:col-span-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+      <div class="text-sm font-semibold mb-2">Progres Bulanan</div>
+      <canvas id="chartBulanan" height="140"></canvas>
+    </div>
+    <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+      <div class="text-sm font-semibold mb-2">Top 10 Santri</div>
+      <canvas id="chartTop10" height="180"></canvas>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 mb-6">
+    <div class="text-sm font-semibold mb-1">⚠️ Santri Perlu Perhatian</div>
+    <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Progres di bawah 40% dari target, atau poin negatif</div>
+    <div id="bermasalahList" class="flex flex-col gap-2"></div>
+    <div id="bermasalahEmpty" class="hidden text-center text-xs text-slate-400 py-4">Tidak ada santri yang perlu perhatian khusus 🎉</div>
+  </div>
+
+  <!-- Filter & search -->
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <input id="searchInput" type="text" placeholder="🔍 Cari nama santri..."
+      class="flex-1 min-w-[160px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 outline-none focus:ring-2 focus:ring-hijau text-sm">
+    <select id="filterKelas" class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
+      <option value="">Semua Kelas</option>
+    </select>
+    <select id="filterHalaqoh" class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
+      <option value="">Semua Halaqoh</option>
+    </select>
+    <button id="exportBtn" class="px-4 py-2.5 rounded-xl bg-emas text-slate-900 font-semibold text-sm shadow-sm">📥 Ekspor Excel</button>
+  </div>
+
+  <!-- Grid santri -->
+  <div id="santriGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"></div>
+  <div id="emptyState" class="hidden text-center py-16 text-slate-400 text-sm">Tidak ada santri yang cocok dengan pencarian/filter.</div>
+  <div id="errorState" class="hidden text-center py-16 text-red-500 text-sm px-6"></div>
+
+</main>
+
+<script>
+/* ====== KONFIGURASI ====== */
+const API_URL = 'GANTI_DENGAN_URL_DEPLOYMENT_APPS_SCRIPT';
+
+/* ====== AUTH GUARD ====== */
+const rawUser = sessionStorage.getItem('pondok_user');
+if(!rawUser){
+  window.location.href = 'login.html';
+}
+const currentUser = rawUser ? JSON.parse(rawUser) : null;
+if(currentUser && currentUser.role === 'Santri'){
+  // Santri langsung diarahkan ke profilnya sendiri, bukan dashboard admin
+  window.location.href = 'santri.html?id=' + encodeURIComponent(currentUser.username);
+}
+
+document.getElementById('userGreeting').textContent = currentUser
+  ? `${currentUser.role} · ${currentUser.username}` : '';
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('pondok_user');
+  window.location.href = 'login.html';
+});
+
+/* ====== DARK MODE ====== */
+const darkToggle = document.getElementById('darkToggle');
+function applyDarkMode(on){
+  document.documentElement.classList.toggle('dark', on);
+  darkToggle.textContent = on ? '☀️' : '🌙';
+  localStorage.setItem('pondok_dark', on ? '1' : '0');
+}
+applyDarkMode(localStorage.getItem('pondok_dark') !== '0');
+darkToggle.addEventListener('click', () => applyDarkMode(!document.documentElement.classList.contains('dark')));
+
+/* ====== API HELPER ====== */
+async function callApi(payload){
+  if(API_URL.includes('GANTI_DENGAN')) throw new Error('API_URL belum diisi. Lihat README.md.');
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+/* ====== STATE ====== */
+let allSantri = [];
+
+/* ====== LOAD DATA ====== */
+async function loadDashboard(){
+  showSkeleton();
+  try{
+    const halaqohFilter = currentUser && currentUser.role === 'Ustadz' ? currentUser.halaqoh : '';
+    const result = await callApi({ action: 'getData', role: currentUser?.role, halaqoh: halaqohFilter });
+    if(!result.ok) throw new Error(result.error || 'Gagal memuat data santri');
+    allSantri = result.data || [];
+    populateFilters(allSantri);
+    renderStats(allSantri);
+    renderTop10(allSantri);
+    renderBermasalah(allSantri);
+    renderGrid(allSantri);
+    loadMonthlyChart();
+  } catch(err){
+    document.getElementById('santriGrid').innerHTML = '';
+    document.getElementById('errorState').textContent = err.message;
+    document.getElementById('errorState').classList.remove('hidden');
+  }
+}
+
+function showSkeleton(){
+  const grid = document.getElementById('santriGrid');
+  grid.innerHTML = Array.from({length: 8}).map(() => `
+    <div class="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+      <div class="skel h-24 w-full"></div>
+      <div class="p-3 space-y-2">
+        <div class="skel h-3 w-3/4 rounded"></div>
+        <div class="skel h-2 w-full rounded"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ====== STATS ====== */
+function persenOf(s){
+  const target = Number(s.target) || 0;
+  const tercapai = Number(s.tercapai) || 0;
+  if(target <= 0) return 0;
+  return Math.min(100, Math.round((tercapai / target) * 100));
+}
+
+function renderStats(list){
+  document.getElementById('statTotalSantri').textContent = list.length;
+  const totalTercapai = list.reduce((sum, s) => sum + (Number(s.tercapai) || 0), 0);
+  document.getElementById('statTotalJuz').textContent = totalTercapai.toLocaleString('id-ID');
+  const rata = list.length ? Math.round(list.reduce((sum, s) => sum + persenOf(s), 0) / list.length) : 0;
+  document.getElementById('statRataProgres').textContent = rata + '%';
+}
+
+/* ====== FILTERS ====== */
+function populateFilters(list){
+  const kelasSel = document.getElementById('filterKelas');
+  const halaqohSel = document.getElementById('filterHalaqoh');
+  const kelasSet = [...new Set(list.map(s => s.kelas).filter(Boolean))].sort();
+  const halaqohSet = [...new Set(list.map(s => s.halaqoh).filter(Boolean))].sort();
+  kelasSet.forEach(k => kelasSel.insertAdjacentHTML('beforeend', `<option value="${k}">${k}</option>`));
+  halaqohSet.forEach(h => halaqohSel.insertAdjacentHTML('beforeend', `<option value="${h}">${h}</option>`));
+}
+
+function getFiltered(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const kelas = document.getElementById('filterKelas').value;
+  const halaqoh = document.getElementById('filterHalaqoh').value;
+  return allSantri.filter(s => {
+    if(q && !String(s.nama || '').toLowerCase().includes(q)) return false;
+    if(kelas && s.kelas !== kelas) return false;
+    if(halaqoh && s.halaqoh !== halaqoh) return false;
+    return true;
+  });
+}
+
+['searchInput','filterKelas','filterHalaqoh'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => renderGrid(getFiltered()));
+  document.getElementById(id).addEventListener('change', () => renderGrid(getFiltered()));
+});
+
+/* ====== GRID SANTRI ====== */
+function statusBadge(s){
+  const persen = persenOf(s);
+  const poin = Number(s.poin) || 0;
+  if(poin < 0 || persen < 40) return { label: 'Perhatian', cls: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300' };
+  if(persen >= 90) return { label: 'Sangat Baik', cls: 'bg-hijau-soft text-hijau dark:bg-hijau/20 dark:text-hijau' };
+  return { label: 'Proses', cls: 'bg-emas-soft text-amber-700 dark:bg-emas/20 dark:text-emas' };
+}
+
+function renderGrid(list){
+  const grid = document.getElementById('santriGrid');
+  const empty = document.getElementById('emptyState');
+  document.getElementById('errorState').classList.add('hidden');
+
+  if(!list.length){
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  grid.innerHTML = list.map(s => {
+    const persen = persenOf(s);
+    const badge = statusBadge(s);
+    const foto = s.foto_url
+      ? `<img src="${escapeAttr(s.foto_url)}" class="w-full h-24 object-cover" loading="lazy">`
+      : `<div class="w-full h-24 bg-hijau/10 dark:bg-hijau/20 flex items-center justify-center text-3xl">🎓</div>`;
+    return `
+      <a href="santri.html?id=${encodeURIComponent(s.id)}" class="santri-card block rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:shadow-lg hover:-translate-y-0.5 transition">
+        ${foto}
+        <div class="p-3">
+          <div class="flex items-start justify-between gap-1.5 mb-1.5">
+            <div class="font-semibold text-sm leading-tight line-clamp-2">${escapeHtml(s.nama || '(tanpa nama)')}</div>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}">${badge.label}</span>
+          </div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">${escapeHtml(s.kelas || '-')} · ${escapeHtml(s.halaqoh || '-')}</div>
+          <div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-1.5">
+            <div class="h-full bg-hijau rounded-full" style="width:${persen}%"></div>
+          </div>
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="text-slate-500 dark:text-slate-400">${persen}%</span>
+            <span class="font-semibold text-emas">⭐ ${Number(s.poin) || 0}</span>
+          </div>
+        </div>
+      </a>
+    `;
+  }).join('');
+}
+
+/* ====== CHART: TOP 10 ====== */
+let chartTop10Instance = null;
+function renderTop10(list){
+  const top = [...list].sort((a,b) => (Number(b.poin)||0) - (Number(a.poin)||0)).slice(0, 10);
+  const ctx = document.getElementById('chartTop10');
+  if(chartTop10Instance) chartTop10Instance.destroy();
+  chartTop10Instance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: top.map(s => (s.nama || '-').split(' ')[0]),
+      datasets: [{ data: top.map(s => Number(s.poin) || 0), backgroundColor: '#D4AF37', borderRadius: 6 }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true } },
+      responsive: true, maintainAspectRatio: false
+    }
+  });
+}
+
+/* ====== SANTRI BERMASALAH ====== */
+function renderBermasalah(list){
+  const bermasalah = list.filter(s => (Number(s.poin) || 0) < 0 || persenOf(s) < 40)
+    .sort((a,b) => persenOf(a) - persenOf(b))
+    .slice(0, 8);
+  const wrap = document.getElementById('bermasalahList');
+  const emptyEl = document.getElementById('bermasalahEmpty');
+  if(!bermasalah.length){
+    wrap.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  emptyEl.classList.add('hidden');
+  wrap.innerHTML = bermasalah.map(s => `
+    <a href="santri.html?id=${encodeURIComponent(s.id)}" class="flex items-center justify-between px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/40 text-sm">
+      <span class="font-medium">${escapeHtml(s.nama || '-')}</span>
+      <span class="text-red-500 font-semibold text-xs">${persenOf(s)}% · ⭐${Number(s.poin)||0}</span>
+    </a>
+  `).join('');
+}
+
+/* ====== CHART: PROGRES BULANAN ====== */
+let chartBulananInstance = null;
+async function loadMonthlyChart(){
+  const ctx = document.getElementById('chartBulanan');
+  try{
+    const result = await callApi({ action: 'getMonthlyProgress' });
+    const data = result.ok ? (result.data || []) : [];
+    if(chartBulananInstance) chartBulananInstance.destroy();
+    chartBulananInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.map(d => d.bulan),
+        datasets: [{
+          data: data.map(d => d.total),
+          borderColor: '#059669',
+          backgroundColor: '#05966922',
+          fill: true, tension: 0.35, pointRadius: 3
+        }]
+      },
+      options: { plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false }
+    });
+  } catch(err){
+    // Grafik bulanan gagal dimuat tidak menghentikan dashboard secara keseluruhan
+    console.warn('Gagal memuat progres bulanan:', err.message);
+  }
+}
+
+/* ====== EKSPOR EXCEL (CSV) ====== */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const list = getFiltered();
+  if(!list.length){ alert('Tidak ada data untuk diekspor.'); return; }
+  const headers = ['Nama','Kelas','Halaqoh','Target','Tercapai','Persen','Poin','Status'];
+  const rows = list.map(s => [
+    s.nama || '', s.kelas || '', s.halaqoh || '', s.target || 0, s.tercapai || 0,
+    persenOf(s) + '%', s.poin || 0, statusBadge(s).label
+  ]);
+  const csv = [headers, ...rows]
+    .map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `data-santri-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+});
+
+/* ====== UTIL ====== */
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+/* ====== INIT ====== */
+if(currentUser && currentUser.role !== 'Santri') loadDashboard();
+</script>
+</body>
+</html>
