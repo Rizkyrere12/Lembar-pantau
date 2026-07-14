@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Masuk — Sistem Pondok</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Poppins', 'sans-serif'] },
+        colors: {
+          hijau: { DEFAULT: '#059669', dark: '#047857', soft: '#d1fae5' },
+          emas: { DEFAULT: '#D4AF37', soft: '#faf3d9' }
+        }
+      }
+    }
+  };
+</script>
+<style>
+  body{ background: radial-gradient(circle at 20% -10%, #05966922, transparent 55%), #f6f7f6; }
+  .dark body{ background: radial-gradient(circle at 20% -10%, #05966933, transparent 55%), #0b1210; }
+  .role-card.active{ border-color:#059669; background: linear-gradient(180deg,#05966912,transparent); box-shadow: 0 0 0 1px #05966955; }
+  .dark .role-card.active{ background: linear-gradient(180deg,#05966922,transparent); }
+  .pin-dot{ transition: all .15s ease; }
+  .shake{ animation: shakeX .35s; }
+  @keyframes shakeX{ 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-6px);} 80%{transform:translateX(6px);} }
+  .fade-in{ animation: fadeIn .25s ease both; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+</style>
+</head>
+<body class="min-h-screen font-sans text-slate-800 dark:text-slate-100 flex flex-col">
+
+  <!-- Toggle dark mode -->
+  <div class="flex justify-end p-4">
+    <button id="darkToggle" class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow flex items-center justify-center text-lg border border-slate-200 dark:border-slate-700">
+      🌙
+    </button>
+  </div>
+
+  <main class="flex-1 flex flex-col items-center justify-center px-5 pb-10">
+    <div class="w-full max-w-sm">
+
+      <!-- Brand -->
+      <div class="text-center mb-7">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-hijau flex items-center justify-center text-3xl shadow-lg shadow-hijau/30 mb-3">
+          🕌
+        </div>
+        <h1 class="text-xl font-bold">Sistem Manajemen Pondok</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Masuk sesuai peran kamu</p>
+      </div>
+
+      <!-- Step 1: Pilih Role -->
+      <div id="stepRole" class="fade-in">
+        <div class="grid grid-cols-3 gap-2.5 mb-6" id="roleGrid">
+          <!-- diisi lewat JS -->
+        </div>
+      </div>
+
+      <!-- Step 2: Username + PIN -->
+      <div id="stepLogin" class="hidden fade-in">
+        <button id="backToRole" class="text-sm text-hijau font-semibold mb-4 flex items-center gap-1">← Ganti peran</button>
+
+        <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <span id="roleIcon" class="text-2xl"></span>
+            <div>
+              <div class="text-xs text-slate-500 dark:text-slate-400">Masuk sebagai</div>
+              <div id="roleLabel" class="font-semibold"></div>
+            </div>
+          </div>
+
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5" id="usernameLabel">Username</label>
+          <input id="username" type="text" autocomplete="username"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 mb-4 outline-none focus:ring-2 focus:ring-hijau"
+            placeholder="Masukkan username">
+
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">PIN (6 digit)</label>
+          <input id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 mb-1 outline-none focus:ring-2 focus:ring-hijau tracking-[0.4em] text-center font-semibold"
+            placeholder="••••••">
+
+          <p id="loginError" class="text-xs text-red-500 mt-2 mb-1 hidden"></p>
+
+          <button id="submitLogin" class="w-full mt-4 py-3.5 rounded-xl bg-hijau hover:bg-hijau-dark text-white font-semibold shadow-lg shadow-hijau/25 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <span id="submitLoginText">Masuk</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: OTP (khusus SuperAdmin / Admin) -->
+      <div id="stepOtp" class="hidden fade-in">
+        <button id="backToLogin" class="text-sm text-hijau font-semibold mb-4 flex items-center gap-1">← Kembali</button>
+        <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm text-center">
+          <div class="text-3xl mb-2">📲</div>
+          <h2 class="font-semibold mb-1">Verifikasi 2 Langkah</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">Kode OTP dikirim lewat WhatsApp ke nomor terdaftar. Berlaku 5 menit.</p>
+
+          <input id="otpInput" type="text" inputmode="numeric" maxlength="6"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 mb-1 outline-none focus:ring-2 focus:ring-emas tracking-[0.5em] text-center text-lg font-bold"
+            placeholder="------">
+
+          <p id="otpError" class="text-xs text-red-500 mt-2 mb-1 hidden"></p>
+
+          <button id="submitOtp" class="w-full mt-4 py-3.5 rounded-xl bg-emas hover:brightness-95 text-slate-900 font-semibold shadow-lg shadow-emas/25 disabled:opacity-60">
+            Verifikasi
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="text-center text-xs text-slate-400 dark:text-slate-600 pb-6">
+    Sistem Manajemen Pondok · dibuat internal
+  </footer>
+
+<script>
+/* ====== KONFIGURASI ====== */
+// Ganti dengan Web App URL hasil deploy Apps Script (lihat README.md)
+const API_URL = 'GANTI_DENGAN_URL_DEPLOYMENT_APPS_SCRIPT';
+
+/* ====== DARK MODE ====== */
+const darkToggle = document.getElementById('darkToggle');
+function applyDarkMode(on){
+  document.documentElement.classList.toggle('dark', on);
+  darkToggle.textContent = on ? '☀️' : '🌙';
+  localStorage.setItem('pondok_dark', on ? '1' : '0');
+}
+applyDarkMode(localStorage.getItem('pondok_dark') !== '0'); // default: dark mode aktif
+darkToggle.addEventListener('click', () => applyDarkMode(!document.documentElement.classList.contains('dark')));
+
+/* ====== ROLE DATA ====== */
+const ROLES = [
+  { key: 'SuperAdmin', label: 'Super Admin', icon: '👑' },
+  { key: 'Admin',      label: 'Admin',       icon: '🗂️' },
+  { key: 'Ustadz',     label: 'Ustadz',      icon: '📖' },
+  { key: 'Wali',       label: 'Wali Santri', icon: '👨‍👩‍👧' },
+  { key: 'Santri',     label: 'Santri',      icon: '🎓' }
+];
+
+const roleGrid = document.getElementById('roleGrid');
+ROLES.forEach(r => {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'role-card border border-slate-200 dark:border-slate-700 rounded-xl py-4 px-2 flex flex-col items-center gap-1.5 bg-white dark:bg-slate-800/60';
+  btn.innerHTML = `<span class="text-2xl">${r.icon}</span><span class="text-[11px] font-semibold text-center leading-tight">${r.label}</span>`;
+  btn.addEventListener('click', () => selectRole(r));
+  roleGrid.appendChild(btn);
+});
+
+let selectedRole = null;
+
+function selectRole(role){
+  selectedRole = role;
+  document.getElementById('roleIcon').textContent = role.icon;
+  document.getElementById('roleLabel').textContent = role.label;
+  document.getElementById('usernameLabel').textContent = role.key === 'Wali' ? 'NIS Anak / Username' : 'Username';
+  document.getElementById('stepRole').classList.add('hidden');
+  document.getElementById('stepLogin').classList.remove('hidden');
+  document.getElementById('username').focus();
+}
+
+document.getElementById('backToRole').addEventListener('click', () => {
+  document.getElementById('stepLogin').classList.add('hidden');
+  document.getElementById('stepRole').classList.remove('hidden');
+  clearError('loginError');
+});
+
+document.getElementById('backToLogin').addEventListener('click', () => {
+  document.getElementById('stepOtp').classList.add('hidden');
+  document.getElementById('stepLogin').classList.remove('hidden');
+  clearError('otpError');
+});
+
+/* ====== HELPER ====== */
+function showError(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  el.closest('div').parentElement.classList.remove('shake');
+  void el.offsetWidth;
+  el.closest('.bg-white, .dark\\:bg-slate-800\\/60')?.classList.add('shake');
+}
+function clearError(id){
+  document.getElementById(id).classList.add('hidden');
+}
+
+async function callApi(payload){
+  if(API_URL.includes('GANTI_DENGAN')){
+    throw new Error('API_URL belum diisi. Lihat README.md untuk cara deploy kode.gs.');
+  }
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    // text/plain dipakai supaya request tidak kena CORS preflight (batasan Apps Script Web App)
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+/* ====== LOGIN ====== */
+const submitLoginBtn = document.getElementById('submitLogin');
+const submitLoginText = document.getElementById('submitLoginText');
+
+submitLoginBtn.addEventListener('click', async () => {
+  clearError('loginError');
+  const username = document.getElementById('username').value.trim();
+  const pin = document.getElementById('pin').value.trim();
+  if(!username || !pin){ showError('loginError', 'Username dan PIN wajib diisi.'); return; }
+
+  submitLoginBtn.disabled = true;
+  submitLoginText.textContent = 'Memeriksa...';
+  try{
+    const result = await callApi({ action: 'login', username, pin });
+    if(!result.ok){ showError('loginError', result.error || 'Login gagal.'); return; }
+
+    if(result.requiresOtp){
+      document.getElementById('stepLogin').classList.add('hidden');
+      document.getElementById('stepOtp').classList.remove('hidden');
+      document.getElementById('otpInput').focus();
+    } else {
+      finishLogin(result.user);
+    }
+  } catch(err){
+    showError('loginError', err.message);
+  } finally {
+    submitLoginBtn.disabled = false;
+    submitLoginText.textContent = 'Masuk';
+  }
+});
+
+document.getElementById('pin').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') submitLoginBtn.click();
+});
+
+/* ====== OTP ====== */
+const submitOtpBtn = document.getElementById('submitOtp');
+submitOtpBtn.addEventListener('click', async () => {
+  clearError('otpError');
+  const username = document.getElementById('username').value.trim();
+  const otp = document.getElementById('otpInput').value.trim();
+  if(!otp){ showError('otpError', 'Masukkan kode OTP.'); return; }
+
+  submitOtpBtn.disabled = true;
+  try{
+    const result = await callApi({ action: 'verifyOtp', username, otp });
+    if(!result.ok){ showError('otpError', result.error || 'Verifikasi gagal.'); return; }
+    finishLogin(result.user);
+  } catch(err){
+    showError('otpError', err.message);
+  } finally {
+    submitOtpBtn.disabled = false;
+  }
+});
+
+document.getElementById('otpInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') submitOtpBtn.click();
+});
+
+/* ====== SELESAI LOGIN ====== */
+function finishLogin(user){
+  sessionStorage.setItem('pondok_user', JSON.stringify(user));
+  // Wali diarahkan langsung ke halaman detail anaknya, role lain ke dashboard
+  if(user.role === 'Wali'){
+    window.location.href = 'santri.html?id=' + encodeURIComponent(document.getElementById('username').value.trim());
+  } else {
+    window.location.href = 'index.html';
+  }
+}
+</script>
+</body>
+</html>
