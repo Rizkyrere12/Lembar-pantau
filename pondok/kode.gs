@@ -31,7 +31,8 @@ const FOLDER_UPLOAD_NAME = 'Upload_Pondok';
 const FONNTE_TOKEN = 'GANTI_DENGAN_TOKEN_FONNTE_KAMU';
 
 // Role yang wajib verifikasi OTP WA setelah PIN benar (staff dengan akses sensitif)
-const ROLE_WAJIB_OTP = ['SuperAdmin', 'Admin'];
+// Dikosongkan = fitur verifikasi 2 langkah OFF untuk semua role. Isi lagi ['SuperAdmin','Admin'] kalau mau aktifkan.
+const ROLE_WAJIB_OTP = [];
 
 /* ================= SETUP (dijalankan manual sekali) ================= */
 function setupSheets() {
