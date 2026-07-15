@@ -21,8 +21,8 @@
   .tab-btn.active{ background:#059669; color:#fff; }
   .fade-in{ animation: fadeIn .25s ease both; } @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
   input[type="radio"]{ accent-color:#059669; width:16px; height:16px; }
-  .toast{ animation: slideUp .25s ease both; }
-  @keyframes slideUp{ from{opacity:0; transform:translate(-50%,10px);} to{opacity:1; transform:translate(-50%,0);} }
+  .toast{ animation: slideUp .25s ease both; } @keyframes slideUp{ from{opacity:0; transform:translate(-50%,10px);} to{opacity:1; transform:translate(-50%,0);} }
+  .quick-status-btn.active{ background:#059669; color:#fff; border-color:transparent; }
 </style>
 </head>
 <body class="min-h-screen font-sans text-slate-800 dark:text-slate-100 pb-16">
@@ -47,49 +47,66 @@
 
     <!-- ===== TAB INPUT ===== -->
     <div id="panelInput" class="fade-in">
-      <div class="flex flex-wrap gap-2 mb-4">
+      <div class="flex flex-wrap gap-2 mb-3">
         <input id="tanggalAbsen" type="date" class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
-        <select id="halaqohSelect" class="flex-1 min-w-[140px] px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
-          <option value="">Pilih Halaqoh</option>
+        <select id="kelasSelect" class="flex-1 min-w-[140px] px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
+          <option value="">Pilih Kelas</option>
         </select>
       </div>
 
-      <div id="loadingInput" class="text-center py-10 text-sm text-slate-400">Memuat daftar santri...</div>
+      <div id="loadingInput" class="text-center py-10 text-sm text-slate-400">Pilih kelas untuk memuat data.</div>
       <div id="errorInput" class="hidden text-center py-10 text-red-500 text-sm px-6"></div>
 
-      <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden mb-4" id="tableWrap" style="display:none;">
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-xs text-slate-400 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
-                <th class="py-2.5 px-3 font-semibold">No</th>
-                <th class="py-2.5 px-3 font-semibold">Nama Santri</th>
-                <th class="py-2.5 px-2 font-semibold text-center">Hadir</th>
-                <th class="py-2.5 px-2 font-semibold text-center">Sakit</th>
-                <th class="py-2.5 px-2 font-semibold text-center">Izin</th>
-                <th class="py-2.5 px-2 font-semibold text-center">Alpha</th>
-                <th class="py-2.5 px-3 font-semibold">Catatan</th>
-              </tr>
-            </thead>
-            <tbody id="absenTableBody"></tbody>
-          </table>
+      <div id="inputArea" style="display:none;">
+        <!-- FITUR BARU: ringkasan hitungan real-time + tandai cepat -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex gap-3 text-xs font-semibold">
+            <span class="text-hijau">Hadir: <span id="cntHadir">0</span></span>
+            <span class="text-emas">Sakit: <span id="cntSakit">0</span></span>
+            <span class="text-sky-500">Izin: <span id="cntIzin">0</span></span>
+            <span class="text-rose-600">Alpha: <span id="cntAlpha">0</span></span>
+            <span class="text-slate-400">Belum diisi: <span id="cntKosong">0</span></span>
+          </div>
+          <button id="btnTandaiHadir" class="px-3 py-1.5 rounded-lg bg-hijau-soft text-hijau dark:bg-hijau/20 text-xs font-semibold">Tandai Semua Hadir</button>
         </div>
-      </div>
 
-      <button id="btnSimpanAbsen" class="w-full py-3.5 rounded-xl bg-hijau text-white font-semibold shadow-lg shadow-hijau/25 disabled:opacity-60">
-        Simpan Absen
-      </button>
+        <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden mb-4">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-slate-400 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+                  <th class="py-2.5 px-3 font-semibold">No</th>
+                  <th class="py-2.5 px-3 font-semibold">Nama Santri</th>
+                  <th class="py-2.5 px-2 font-semibold text-center">Hadir</th>
+                  <th class="py-2.5 px-2 font-semibold text-center">Sakit</th>
+                  <th class="py-2.5 px-2 font-semibold text-center">Izin</th>
+                  <th class="py-2.5 px-2 font-semibold text-center">Alpha</th>
+                  <th class="py-2.5 px-3 font-semibold">Catatan</th>
+                </tr>
+              </thead>
+              <tbody id="absenTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <button id="btnSimpanAbsen" class="w-full py-3.5 rounded-xl bg-hijau text-white font-semibold shadow-lg shadow-hijau/25 disabled:opacity-60">
+          Simpan Absen
+        </button>
+        <p id="simpanStatus" class="text-xs text-center mt-2 text-slate-500 dark:text-slate-400"></p>
+      </div>
     </div>
 
     <!-- ===== TAB REKAP BULANAN ===== -->
     <div id="panelRekap" class="hidden fade-in">
       <div class="flex flex-wrap gap-2 mb-4">
         <input id="rekapBulan" type="month" class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
-        <select id="rekapHalaqoh" class="flex-1 min-w-[140px] px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
-          <option value="">Pilih Halaqoh</option>
+        <select id="rekapKelas" class="flex-1 min-w-[140px] px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
+          <option value="">Pilih Kelas</option>
         </select>
         <button id="btnMuatRekap" class="px-4 py-2.5 rounded-xl bg-hijau text-white font-semibold text-sm">Tampilkan</button>
       </div>
+
+      <div id="rekapLoading" class="hidden text-center py-10 text-sm text-slate-400">Memuat rekap...</div>
 
       <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
         <div class="overflow-x-auto">
@@ -121,11 +138,11 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbw3bi_-pKcsAlxhMgeqFuTVUKkpe3hNmN4urGs5pirGfAAtTdUFCyvbKRm-9x-Z0h7g5A/exec';
 const STATUS_LIST = ['Hadir', 'Sakit', 'Izin', 'Alpha'];
 
-/* ====== AUTH GUARD + KONTROL AKSES ROLE ====== */ //FITUR BARU
+/* ====== AUTH GUARD + KONTROL AKSES ROLE ====== */
 const rawUser = sessionStorage.getItem('pondok_user');
 if(!rawUser) window.location.href = 'login.html';
 const currentUser = rawUser ? JSON.parse(rawUser) : null;
-const ALLOWED_ROLES = ['Ustadz', 'Admin', 'SuperAdmin']; //FITUR BARU
+const ALLOWED_ROLES = ['Ustadz', 'Admin', 'SuperAdmin'];
 
 if(currentUser && !ALLOWED_ROLES.includes(currentUser.role)){
   document.getElementById('accessDenied').classList.remove('hidden');
@@ -176,57 +193,59 @@ async function callApi(payload){
 let santriList = [];
 let entries = {}; // { id_santri: { status, catatan } }
 
-/* ====== INIT TANGGAL / HALAQOH SELECT ====== */
+/* ====== INIT TANGGAL ====== */
 document.getElementById('tanggalAbsen').value = new Date().toISOString().slice(0,10);
 document.getElementById('rekapBulan').value = new Date().toISOString().slice(0,7);
 
-function setupHalaqohLock(selectEl){
-  //FITUR BARU — Ustadz otomatis dikunci ke halaqoh-nya sendiri, Admin/SuperAdmin bebas pilih
-  if(currentUser.role === 'Ustadz'){
-    selectEl.innerHTML = `<option value="${currentUser.halaqoh}">${currentUser.halaqoh}</option>`;
-    selectEl.value = currentUser.halaqoh;
-    selectEl.disabled = true;
+/* ====== FITUR BARU: KELAS DINAMIS (dari sheet Kelas, dikelola SuperAdmin) ====== */
+async function loadKelasOptions(){
+  try{
+    const result = await callApi({ action: 'getKelasList' });
+    const kelasList = result.ok ? (result.data || []) : [];
+
+    ['kelasSelect', 'rekapKelas'].forEach(id => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = '<option value="">Pilih Kelas</option>';
+      kelasList.forEach(k => sel.insertAdjacentHTML('beforeend', `<option value="${k}">${k}</option>`));
+
+      // Ustadz otomatis dikunci ke kelas yang diampu-nya
+      if(currentUser.role === 'Ustadz' && currentUser.kelas){
+        sel.value = currentUser.kelas;
+        sel.disabled = true;
+      }
+    });
+
+    if(currentUser.role === 'Ustadz' && currentUser.kelas){
+      loadAbsenTable();
+    }
+  } catch(err){
+    showToast('Gagal memuat daftar kelas: ' + err.message);
   }
 }
-setupHalaqohLock(document.getElementById('halaqohSelect'));
-setupHalaqohLock(document.getElementById('rekapHalaqoh'));
-
-//FITUR BARU — Admin/SuperAdmin: isi pilihan halaqoh dari data santri yang ada
-async function populateHalaqohOptionsIfNeeded(){
-  if(currentUser.role === 'Ustadz') return;
-  try{
-    const result = await callApi({ action: 'getData', role: currentUser.role });
-    if(!result.ok) return;
-    const halaqohSet = [...new Set((result.data || []).map(s => s.halaqoh).filter(Boolean))].sort();
-    ['halaqohSelect','rekapHalaqoh'].forEach(id => {
-      const sel = document.getElementById(id);
-      halaqohSet.forEach(h => sel.insertAdjacentHTML('beforeend', `<option value="${h}">${h}</option>`));
-    });
-  } catch(err){ /* biarkan user pilih manual kalau gagal */ }
-}
-populateHalaqohOptionsIfNeeded();
+loadKelasOptions();
 
 /* ====== LOAD SANTRI + ABSEN HARI ITU ====== */
-document.getElementById('halaqohSelect').addEventListener('change', loadAbsenTable);
+document.getElementById('kelasSelect').addEventListener('change', loadAbsenTable);
 document.getElementById('tanggalAbsen').addEventListener('change', loadAbsenTable);
 
 async function loadAbsenTable(){
-  const halaqoh = document.getElementById('halaqohSelect').value;
+  const kelas = document.getElementById('kelasSelect').value;
   const tanggal = document.getElementById('tanggalAbsen').value;
-  const wrap = document.getElementById('tableWrap');
+  const inputArea = document.getElementById('inputArea');
   const loading = document.getElementById('loadingInput');
   const errorEl = document.getElementById('errorInput');
 
-  if(!halaqoh){ wrap.style.display = 'none'; return; }
+  if(!kelas){ inputArea.style.display = 'none'; loading.textContent = 'Pilih kelas untuk memuat data.'; loading.classList.remove('hidden'); return; }
 
+  loading.textContent = 'Memuat daftar santri...';
   loading.classList.remove('hidden');
   errorEl.classList.add('hidden');
-  wrap.style.display = 'none';
+  inputArea.style.display = 'none';
 
   try{
     const [dataRes, absenRes] = await Promise.all([
-      callApi({ action: 'getData', role: currentUser.role, halaqoh }),
-      callApi({ action: 'getAbsen', role: currentUser.role, halaqoh, tanggal })
+      callApi({ action: 'getData', role: currentUser.role, kelas }),
+      callApi({ action: 'getAbsen', role: currentUser.role, kelas, tanggal })
     ]);
     if(!dataRes.ok) throw new Error(dataRes.error || 'Gagal memuat santri');
     if(!absenRes.ok) throw new Error(absenRes.error || 'Gagal memuat absen');
@@ -236,11 +255,12 @@ async function loadAbsenTable(){
     (absenRes.data || []).forEach(r => { entries[r.id_santri] = { status: r.status, catatan: r.catatan || '' }; });
 
     renderAbsenTable();
-    wrap.style.display = 'block';
+    updateSummaryCounts();
+    inputArea.style.display = 'block';
+    loading.classList.add('hidden');
   } catch(err){
     errorEl.textContent = err.message;
     errorEl.classList.remove('hidden');
-  } finally {
     loading.classList.add('hidden');
   }
 }
@@ -248,7 +268,7 @@ async function loadAbsenTable(){
 function renderAbsenTable(){
   const body = document.getElementById('absenTableBody');
   if(!santriList.length){
-    body.innerHTML = `<tr><td colspan="7" class="text-center text-xs text-slate-400 py-6">Tidak ada santri di halaqoh ini.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" class="text-center text-xs text-slate-400 py-6">Tidak ada santri di kelas ini.</td></tr>`;
     return;
   }
   body.innerHTML = santriList.map((s, idx) => {
@@ -268,13 +288,43 @@ function renderAbsenTable(){
       </tr>
     `;
   }).join('');
+
+  // FITUR BARU: update ringkasan real-time tiap kali status diklik
+  document.querySelectorAll('#absenTableBody input[type="radio"]').forEach(r => {
+    r.addEventListener('change', updateSummaryCounts);
+  });
 }
+
+//FITUR BARU — ringkasan hitungan real-time di atas tabel
+function updateSummaryCounts(){
+  const count = { Hadir:0, Sakit:0, Izin:0, Alpha:0 };
+  let kosong = 0;
+  document.querySelectorAll('#absenTableBody tr[data-id]').forEach(row => {
+    const checked = row.querySelector('input[type="radio"]:checked');
+    if(checked && count[checked.value] !== undefined) count[checked.value]++;
+    else kosong++;
+  });
+  document.getElementById('cntHadir').textContent = count.Hadir;
+  document.getElementById('cntSakit').textContent = count.Sakit;
+  document.getElementById('cntIzin').textContent = count.Izin;
+  document.getElementById('cntAlpha').textContent = count.Alpha;
+  document.getElementById('cntKosong').textContent = kosong;
+}
+
+//FITUR BARU — tandai semua santri "Hadir" sekali klik
+document.getElementById('btnTandaiHadir').addEventListener('click', () => {
+  document.querySelectorAll('#absenTableBody tr[data-id]').forEach(row => {
+    const hadirRadio = row.querySelector('input[value="Hadir"]');
+    if(hadirRadio) hadirRadio.checked = true;
+  });
+  updateSummaryCounts();
+});
 
 /* ====== SIMPAN ABSEN ====== */
 document.getElementById('btnSimpanAbsen').addEventListener('click', async () => {
-  const halaqoh = document.getElementById('halaqohSelect').value;
+  const kelas = document.getElementById('kelasSelect').value;
   const tanggal = document.getElementById('tanggalAbsen').value;
-  if(!halaqoh){ showToast('Pilih halaqoh dulu.'); return; }
+  if(!kelas){ showToast('Pilih kelas dulu.'); return; }
 
   const rows = Array.from(document.querySelectorAll('#absenTableBody tr[data-id]'));
   const toSave = [];
@@ -289,44 +339,55 @@ document.getElementById('btnSimpanAbsen').addEventListener('click', async () => 
 
   const btn = document.getElementById('btnSimpanAbsen');
   btn.disabled = true; btn.textContent = `Menyimpan 0/${toSave.length}...`;
-  let sukses = 0;
+  let sukses = 0, gagalList = [];
   for(const item of toSave){
     try{
       const result = await callApi({
         action: 'saveAbsen', id_santri: item.id_santri, status: item.status, catatan: item.catatan,
-        tanggal, halaqoh, role: currentUser.role, username: currentUser.username
+        tanggal, kelas, role: currentUser.role, username: currentUser.username
       });
-      if(result.ok) sukses++;
-    } catch(err){ /* lanjut ke santri berikutnya */ }
-    btn.textContent = `Menyimpan ${sukses}/${toSave.length}...`;
+      if(result.ok) sukses++; else gagalList.push(item.id_santri);
+    } catch(err){ gagalList.push(item.id_santri); }
+    btn.textContent = `Menyimpan ${sukses + gagalList.length}/${toSave.length}...`;
   }
   btn.disabled = false; btn.textContent = 'Simpan Absen';
-  showToast(`✓ Berhasil Disimpan (${sukses}/${toSave.length})`); //FITUR BARU notifikasi
+
+  const statusEl = document.getElementById('simpanStatus');
+  if(gagalList.length){
+    statusEl.textContent = `${sukses} tersimpan, ${gagalList.length} gagal.`;
+    showToast(`⚠️ ${sukses}/${toSave.length} berhasil disimpan`);
+  } else {
+    statusEl.textContent = '';
+    showToast('✓ Berhasil Disimpan'); //FITUR BARU notifikasi
+  }
 });
 
 /* ====== REKAP BULANAN ====== */
 document.getElementById('btnMuatRekap').addEventListener('click', loadRekapBulanan);
 
 async function loadRekapBulanan(){
-  const halaqoh = document.getElementById('rekapHalaqoh').value;
+  const kelas = document.getElementById('rekapKelas').value;
   const bulan = document.getElementById('rekapBulan').value; // format yyyy-MM
-  if(!halaqoh || !bulan){ showToast('Pilih halaqoh dan bulan dulu.'); return; }
+  if(!kelas || !bulan){ showToast('Pilih kelas dan bulan dulu.'); return; }
 
   const mulai = bulan + '-01';
   const [year, month] = bulan.split('-').map(Number);
   const lastDay = new Date(year, month, 0).getDate();
   const selesai = `${bulan}-${String(lastDay).padStart(2,'0')}`;
 
+  document.getElementById('rekapLoading').classList.remove('hidden');
   try{
     const [dataRes, absenRes] = await Promise.all([
-      callApi({ action: 'getData', role: currentUser.role, halaqoh }),
-      callApi({ action: 'getAbsen', role: currentUser.role, halaqoh, mulai, selesai })
+      callApi({ action: 'getData', role: currentUser.role, kelas }),
+      callApi({ action: 'getAbsen', role: currentUser.role, kelas, mulai, selesai })
     ]);
     if(!dataRes.ok) throw new Error(dataRes.error);
     if(!absenRes.ok) throw new Error(absenRes.error);
     renderRekapBulanan(dataRes.data || [], absenRes.data || []);
   } catch(err){
     showToast('Gagal memuat rekap: ' + err.message);
+  } finally {
+    document.getElementById('rekapLoading').classList.add('hidden');
   }
 }
 
