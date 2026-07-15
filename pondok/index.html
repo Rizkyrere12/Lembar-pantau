@@ -325,7 +325,7 @@ document.getElementById('btnSimpanUser').addEventListener('click', async () => {
       username, pin, nama, role, halaqoh, no_hp: noHp
     });
     if(result.status !== 'ok'){
-      errorEl.textContent = result.message || 'Gagal menambahkan user.';
+      errorEl.textContent = result.message || result.error || 'Gagal menambahkan user (tidak ada pesan error dari server).';
       errorEl.classList.remove('hidden');
       return;
     }
