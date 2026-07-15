@@ -25,6 +25,7 @@ const SHEET_SETORAN = 'RiwayatSetoran';
 const SHEET_USERS = 'Users';
 const SHEET_KEUANGAN = 'TransaksiKeuangan';
 const SHEET_ABSENSI = 'Absensi'; //FITUR BARU — sheet terpisah untuk modul absen (menggantikan pencatatan lama di RiwayatSetoran)
+const SHEET_KELAS = 'Kelas'; //FITUR BARU — daftar kelas dikelola SuperAdmin, menggantikan konsep "halaqoh"
 const FOLDER_UPLOAD_NAME = 'Upload_Pondok';
 
 // Isi token Fonnte di sini kalau mau fitur WA aktif. Daftar di https://fonnte.com
@@ -38,10 +39,11 @@ const ROLE_WAJIB_OTP = [];
 function setupSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const schema = {
-    [SHEET_SANTRI]: ['id', 'nama', 'kelas', 'halaqoh', 'no_wali', 'target', 'tercapai', 'target_kitab', 'tercapai_kitab', 'target_tahsin', 'tercapai_tahsin', 'poin', 'status', 'foto_url'],
+    [SHEET_SANTRI]: ['id', 'nama', 'kelas', 'no_wali', 'target', 'tercapai', 'target_kitab', 'tercapai_kitab', 'target_tahsin', 'tercapai_tahsin', 'poin', 'status', 'foto_url'], //FITUR BARU: kolom 'halaqoh' dihapus, pakai 'kelas' saja
     [SHEET_SETORAN]: ['id_santri', 'tanggal', 'jenis', 'jumlah', 'nilai', 'catatan', 'bukti_url', 'ustadz'],
-    [SHEET_USERS]: ['username', 'pin', 'nama', 'role', 'halaqoh', 'no_wa'], //FITUR BARU: tambah kolom 'nama'
-    [SHEET_KEUANGAN]: ['tanggal', 'jenis', 'keterangan', 'jumlah', 'bukti']
+    [SHEET_USERS]: ['username', 'pin', 'nama', 'role', 'kelas', 'no_wa'], //FITUR BARU: 'halaqoh' diganti 'kelas'
+    [SHEET_KEUANGAN]: ['tanggal', 'jenis', 'keterangan', 'jumlah', 'bukti'],
+    [SHEET_KELAS]: ['nama'] //FITUR BARU: daftar kelas, dikelola SuperAdmin
   };
   Object.keys(schema).forEach(name => {
     let sheet = ss.getSheetByName(name);
@@ -83,12 +85,14 @@ function doPost(e) {
       case 'saveKeuangan':  result = handleSaveKeuangan(body); break;
       case 'getKeuangan':   result = handleGetKeuangan(body); break;
       case 'getMonthlyProgress': result = handleGetMonthlyProgress(body); break;
-      case 'getAbsenRekap': result = handleGetAbsenRekap(body); break;
       case 'getAbsen':      result = handleGetAbsen(body); break;          //FITUR BARU
       case 'savePresentasi': result = handleSavePresentasi(body); break;   //FITUR BARU
       case 'getPresentasiData': result = handleGetPresentasiData(body); break; //FITUR BARU
       case 'tambahUser':    result = handleTambahUser(body); break;        //FITUR BARU
       case 'getUsers':      result = handleGetUsers(body); break;          //FITUR BARU
+      case 'getKelasList':  result = handleGetKelasList(body); break;      //FITUR BARU
+      case 'tambahKelas':   result = handleTambahKelas(body); break;       //FITUR BARU
+      case 'hapusKelas':    result = handleHapusKelas(body); break;        //FITUR BARU
       default:              result = { ok: false, error: 'Action tidak dikenali: ' + body.action };
     }
   } catch (err) {
@@ -143,6 +147,7 @@ function handleLogin(body) {
   const { username, pin } = body;
   if (!username || !pin) return { ok: false, error: 'Username dan PIN wajib diisi' };
 
+  ensureUsersKelasColumn(); //FITUR BARU
   const users = sheetToObjects(getSheet(SHEET_USERS));
   const user = users.find(u => String(u.username).toLowerCase() === String(username).toLowerCase());
   if (!user) return { ok: false, error: 'Akun tidak ditemukan' };
@@ -151,7 +156,7 @@ function handleLogin(body) {
   const profile = {
     username: user.username,
     role: user.role,
-    halaqoh: user.halaqoh || '',
+    kelas: user.kelas || '', //FITUR BARU: ganti halaqoh -> kelas
     no_wa: user.no_wa || ''
   };
 
@@ -174,13 +179,14 @@ function handleVerifyOtp(body) {
   if (String(cached) !== String(otp)) return { ok: false, error: 'Kode OTP salah' };
   CacheService.getScriptCache().remove('otp_' + username);
 
+  ensureUsersKelasColumn(); //FITUR BARU
   const users = sheetToObjects(getSheet(SHEET_USERS));
   const user = users.find(u => String(u.username).toLowerCase() === String(username).toLowerCase());
   if (!user) return { ok: false, error: 'Akun tidak ditemukan' };
 
   return {
     ok: true,
-    user: { username: user.username, role: user.role, halaqoh: user.halaqoh || '', no_wa: user.no_wa || '' }
+    user: { username: user.username, role: user.role, kelas: user.kelas || '', no_wa: user.no_wa || '' }
   };
 }
 
@@ -192,7 +198,6 @@ function handleGetData(body) {
   if (body.role === 'Wali') {
     rows = body.id ? rows.filter(s => String(s.id) === String(body.id)) : [];
   }
-  if (body.halaqoh) rows = rows.filter(s => String(s.halaqoh) === String(body.halaqoh));
   if (body.kelas) rows = rows.filter(s => String(s.kelas) === String(body.kelas));
 
   return { ok: true, data: rows };
@@ -283,16 +288,16 @@ function getAbsensiSheet() {
   return sheet;
 }
 
-//FITUR BARU — validasi akses: Ustadz cuma boleh untuk halaqoh-nya sendiri,
-// Admin/SuperAdmin bebas semua halaqoh. Dipakai bareng modul Absen & Presentasi.
-function checkHalaqohAccess(body, idSantri) {
+//FITUR BARU — validasi akses: Ustadz cuma boleh untuk kelas yang diampu-nya sendiri,
+// Admin/SuperAdmin bebas semua kelas. Dipakai bareng modul Absen & Presentasi.
+function checkKelasAccess(body, idSantri) {
   if (body.role === 'Admin' || body.role === 'SuperAdmin') return { ok: true };
   if (body.role !== 'Ustadz') return { ok: false, error: 'Role tidak punya akses ke modul ini' };
 
   const santri = sheetToObjects(getSheet(SHEET_SANTRI)).find(s => String(s.id) === String(idSantri));
   if (!santri) return { ok: false, error: 'Santri tidak ditemukan' };
-  if (String(santri.halaqoh) !== String(body.halaqoh)) {
-    return { ok: false, error: 'Ustadz hanya bisa mengakses santri di halaqoh-nya sendiri' };
+  if (String(santri.kelas) !== String(body.kelas)) {
+    return { ok: false, error: 'Ustadz hanya bisa mengakses santri di kelas yang diampu-nya sendiri' };
   }
   return { ok: true };
 }
@@ -302,7 +307,7 @@ function handleSaveAbsen(body) {
   if (!body.id_santri || !body.status || !body.tanggal) {
     return { ok: false, error: 'id_santri, status, dan tanggal wajib diisi' };
   }
-  const akses = checkHalaqohAccess(body, body.id_santri);
+  const akses = checkKelasAccess(body, body.id_santri);
   if (!akses.ok) return akses;
 
   const sheet = getAbsensiSheet();
@@ -329,10 +334,10 @@ function handleSaveAbsen(body) {
   return { ok: true, message: 'Absen tersimpan' };
 }
 
-//FITUR BARU — ambil data absen. Filter: tanggal (satu hari) ATAU mulai+selesai (rentang untuk rekap bulanan), + halaqoh.
+//FITUR BARU — ambil data absen. Filter: tanggal (satu hari) ATAU mulai+selesai (rentang untuk rekap bulanan), + kelas.
 function handleGetAbsen(body) {
-  if (body.role === 'Ustadz' && !body.halaqoh) {
-    return { ok: false, error: 'Halaqoh wajib diisi untuk role Ustadz' };
+  if (body.role === 'Ustadz' && !body.kelas) {
+    return { ok: false, error: 'Kelas wajib diisi untuk role Ustadz' };
   }
   const sheet = getAbsensiSheet();
   let rows = sheetToObjects(sheet).map(r => ({ ...r, tanggal: formatDateOnly(r.tanggal) }));
@@ -344,55 +349,19 @@ function handleGetAbsen(body) {
   const santriMap = {};
   sheetToObjects(getSheet(SHEET_SANTRI)).forEach(s => { santriMap[String(s.id)] = s; });
 
-  if (body.halaqoh) {
+  if (body.kelas) {
     rows = rows.filter(r => {
       const s = santriMap[String(r.id_santri)];
-      return s && String(s.halaqoh) === String(body.halaqoh);
+      return s && String(s.kelas) === String(body.kelas);
     });
   }
 
   rows = rows.map(r => {
     const s = santriMap[String(r.id_santri)] || {};
-    return { ...r, nama: s.nama || '(tidak ditemukan)', kelas: s.kelas || '-', halaqoh: s.halaqoh || '-' };
+    return { ...r, nama: s.nama || '(tidak ditemukan)', kelas: s.kelas || '-' };
   });
 
   return { ok: true, data: rows };
-}
-
-/* ================= ABSEN (LAMA — dipertahankan agar tidak memutus riwayat lama) ================= */
-// Catatan: modul Absen yang aktif sekarang pakai sheet "Absensi" (lihat handleSaveAbsen/handleGetAbsen di atas).
-// Fungsi di bawah ini legacy dari implementasi sebelumnya (nulis ke RiwayatSetoran jenis "Absen") — tidak lagi dipanggil dari absen.html versi baru.
-function handleGetAbsenRekap(body) {
-  const { mulai, selesai, halaqoh } = body;
-  if (!mulai || !selesai) return { ok: false, error: 'mulai dan selesai wajib diisi' };
-
-  const absenRows = sheetToObjects(getSheet(SHEET_SETORAN)).filter(r => r.jenis === 'Absen');
-  const santriMap = {};
-  sheetToObjects(getSheet(SHEET_SANTRI)).forEach(s => { santriMap[String(s.id)] = s; });
-
-  const filtered = absenRows
-    .map(r => ({ ...r, tanggal: formatDateOnly(r.tanggal) }))
-    .filter(r => r.tanggal >= mulai && r.tanggal <= selesai)
-    .filter(r => {
-      if (!halaqoh) return true;
-      const s = santriMap[String(r.id_santri)];
-      return s && String(s.halaqoh) === String(halaqoh);
-    })
-    .map(r => {
-      const s = santriMap[String(r.id_santri)] || {};
-      return {
-        id_santri: r.id_santri,
-        nama: s.nama || '(tidak ditemukan)',
-        kelas: s.kelas || '-',
-        halaqoh: s.halaqoh || '-',
-        tanggal: r.tanggal,
-        status: r.nilai,
-        catatan: r.catatan,
-        ustadz: r.ustadz
-      };
-    });
-
-  return { ok: true, data: filtered };
 }
 
 function formatDateOnly(value) {
@@ -439,7 +408,7 @@ function handleGetKeuangan(body) {
 // (kalau sudah pernah disimpan di tanggal yang sama, baris lama diperbarui).
 function handleSavePresentasi(body) {
   if (!body.id_santri || !body.tanggal) return { ok: false, error: 'id_santri dan tanggal wajib diisi' };
-  const akses = checkHalaqohAccess(body, body.id_santri);
+  const akses = checkKelasAccess(body, body.id_santri);
   if (!akses.ok) return akses;
 
   const catatanGabungan = `Murajaah: ${body.murajaah || 0} hlm.` + (body.catatan ? ' ' + body.catatan : '');
@@ -485,11 +454,11 @@ function handleSavePresentasi(body) {
 //FITUR BARU — data untuk grid presentasi: daftar santri (sudah difilter halaqoh + akses role)
 // + data presentasi yang sudah diisi di tanggal terpilih (untuk prefill form).
 function handleGetPresentasiData(body) {
-  if (body.role === 'Ustadz' && !body.halaqoh) {
-    return { ok: false, error: 'Halaqoh wajib diisi untuk role Ustadz' };
+  if (body.role === 'Ustadz' && !body.kelas) {
+    return { ok: false, error: 'Kelas wajib diisi untuk role Ustadz' };
   }
   let santri = sheetToObjects(getSheet(SHEET_SANTRI));
-  if (body.halaqoh) santri = santri.filter(s => String(s.halaqoh) === String(body.halaqoh));
+  if (body.kelas) santri = santri.filter(s => String(s.kelas) === String(body.kelas));
 
   const tanggal = body.tanggal || todayStr();
   const presentasi = sheetToObjects(getSheet(SHEET_SETORAN))
@@ -510,19 +479,35 @@ function ensureUsersNamaColumn() {
   }
 }
 
+//FITUR BARU — self-healing migrasi 'halaqoh' -> 'kelas'. Kalau sheet lama masih punya
+// kolom 'halaqoh', header-nya diganti nama jadi 'kelas' (data yang sudah ada tetap kepakai).
+function ensureUsersKelasColumn() {
+  const sheet = getSheet(SHEET_USERS);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf('kelas') !== -1) return;
+  const halaqohCol = headers.indexOf('halaqoh');
+  if (halaqohCol !== -1) {
+    sheet.getRange(1, halaqohCol + 1).setValue('kelas');
+  } else {
+    const newCol = sheet.getLastColumn() + 1;
+    sheet.getRange(1, newCol).setValue('kelas').setFontWeight('bold');
+  }
+}
+
 //FITUR BARU — tambah user baru. Keamanan: hanya requesterRole === 'SuperAdmin' yang diizinkan,
 // dicek di backend (bukan cuma disembunyikan di UI).
 function handleTambahUser(body) {
   if (body.requesterRole !== 'SuperAdmin') {
     return { status: 'error', message: 'Hanya SuperAdmin yang boleh menambah user' };
   }
-  const { username, pin, nama, role, halaqoh, no_hp } = body;
+  const { username, pin, nama, role, kelas, no_hp } = body;
   if (!username || !pin || !role) {
     return { status: 'error', message: 'Username, PIN, dan Role wajib diisi' };
   }
 
   try {
     ensureUsersNamaColumn();
+    ensureUsersKelasColumn();
     const sheet = getSheet(SHEET_USERS);
     const users = sheetToObjects(sheet);
     const duplikat = users.some(u => String(u.username).toLowerCase() === String(username).toLowerCase());
@@ -531,7 +516,7 @@ function handleTambahUser(body) {
     }
 
     appendRowFromObject(sheet, {
-      username, pin, nama: nama || '', role, halaqoh: halaqoh || '', no_wa: no_hp || ''
+      username, pin, nama: nama || '', role, kelas: kelas || '', no_wa: no_hp || ''
     });
     return { status: 'ok', message: 'User berhasil ditambahkan' };
   } catch (err) {
@@ -548,10 +533,77 @@ function handleGetUsers(body) {
     return { ok: false, error: 'Hanya SuperAdmin yang boleh melihat daftar user' };
   }
   ensureUsersNamaColumn();
+  ensureUsersKelasColumn();
   const users = sheetToObjects(getSheet(SHEET_USERS)).map(u => ({
-    username: u.username, nama: u.nama || '', role: u.role, halaqoh: u.halaqoh || '', no_hp: u.no_wa || ''
+    username: u.username, nama: u.nama || '', role: u.role, kelas: u.kelas || '', no_hp: u.no_wa || ''
   }));
   return { ok: true, data: users };
+}
+
+/* ================= MANAJEMEN KELAS — MODUL BARU (khusus SuperAdmin) ================= */
+//FITUR BARU — self-healing: ambil sheet Kelas, buat otomatis kalau belum ada.
+function getKelasSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_KELAS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_KELAS);
+    sheet.getRange(1, 1, 1, 1).setValues([['nama']]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+//FITUR BARU — daftar kelas. Bisa diakses semua role yang sudah login (dipakai untuk
+// isi dropdown di absen.html, presentasi.html, dan modal tambah user).
+function handleGetKelasList(body) {
+  const sheet = getKelasSheet();
+  const rows = sheetToObjects(sheet).map(r => r.nama).filter(Boolean);
+  return { ok: true, data: rows };
+}
+
+//FITUR BARU — tambah kelas baru, khusus SuperAdmin.
+function handleTambahKelas(body) {
+  if (body.requesterRole !== 'SuperAdmin') {
+    return { status: 'error', message: 'Hanya SuperAdmin yang boleh menambah kelas' };
+  }
+  const nama = String(body.nama || '').trim();
+  if (!nama) return { status: 'error', message: 'Nama kelas wajib diisi' };
+
+  try {
+    const sheet = getKelasSheet();
+    const existing = sheetToObjects(sheet).map(r => String(r.nama).toLowerCase());
+    if (existing.indexOf(nama.toLowerCase()) !== -1) {
+      return { status: 'error', message: 'Kelas dengan nama itu sudah ada' };
+    }
+    sheet.appendRow([nama]);
+    return { status: 'ok', message: 'Kelas berhasil ditambahkan' };
+  } catch (err) {
+    return { status: 'error', message: 'Error internal: ' + err.message };
+  }
+}
+
+//FITUR BARU — hapus kelas, khusus SuperAdmin. Tidak menghapus/mengubah data santri
+// yang sudah terlanjur pakai nama kelas itu (cuma menghapus dari daftar pilihan).
+function handleHapusKelas(body) {
+  if (body.requesterRole !== 'SuperAdmin') {
+    return { status: 'error', message: 'Hanya SuperAdmin yang boleh menghapus kelas' };
+  }
+  const nama = String(body.nama || '').trim();
+  if (!nama) return { status: 'error', message: 'Nama kelas wajib diisi' };
+
+  try {
+    const sheet = getKelasSheet();
+    const values = sheet.getDataRange().getValues();
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][0]).toLowerCase() === nama.toLowerCase()) {
+        sheet.deleteRow(i + 1);
+        return { status: 'ok', message: 'Kelas berhasil dihapus' };
+      }
+    }
+    return { status: 'error', message: 'Kelas tidak ditemukan' };
+  } catch (err) {
+    return { status: 'error', message: 'Error internal: ' + err.message };
+  }
 }
 
 /* ================= WHATSAPP (Fonnte) ================= */
