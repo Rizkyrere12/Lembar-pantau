@@ -107,9 +107,6 @@
     <select id="filterKelas" class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
       <option value="">Semua Kelas</option>
     </select>
-    <select id="filterHalaqoh" class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm">
-      <option value="">Semua Halaqoh</option>
-    </select>
     <button id="exportBtn" class="px-4 py-2.5 rounded-xl bg-emas text-slate-900 font-semibold text-sm shadow-sm">📥 Ekspor Excel</button>
   </div>
 
@@ -132,7 +129,7 @@
               <th class="py-2 px-2">Username</th>
               <th class="py-2 px-2">Nama</th>
               <th class="py-2 px-2">Role</th>
-              <th class="py-2 px-2">Halaqoh</th>
+              <th class="py-2 px-2">Kelas</th>
               <th class="py-2 px-2">No HP</th>
             </tr>
           </thead>
@@ -144,7 +141,38 @@
     </div>
   </div>
 
+  <!-- FITUR BARU: Manajemen Kelas — cuma tampil untuk SuperAdmin -->
+  <div id="kelasManagementSection" class="hidden mt-8">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-bold">🏫 Manajemen Kelas</h2>
+      <button id="btnTambahKelas" class="px-3 py-2 rounded-lg bg-hijau text-white text-xs font-semibold shadow-sm">+ Tambah Kelas</button>
+    </div>
+    <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+      <div id="kelasListWrap" class="flex flex-wrap gap-2"></div>
+      <div id="kelasListEmpty" class="hidden text-center text-xs text-slate-400 py-4">Belum ada kelas. Tambahkan dulu supaya bisa dipilih di Absen/Presentasi/Tambah User.</div>
+      <div id="kelasListLoading" class="hidden text-center text-xs text-slate-400 py-4">Memuat...</div>
+    </div>
+  </div>
+
 </main>
+
+<!-- FITUR BARU: Modal Tambah Kelas -->
+<div id="modalTambahKelas" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-sm">Tambah Kelas Baru</h3>
+      <button id="btnCloseModalKelas" class="text-slate-400 text-lg leading-none">✕</button>
+    </div>
+    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Nama Kelas</label>
+    <input id="formNamaKelas" type="text" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-1" placeholder="Misal: 5A, Halaqoh 1, dst">
+    <p id="kelasFormError" class="text-xs text-red-500 mb-3 hidden"></p>
+    <div class="grid grid-cols-2 gap-2">
+      <button id="btnBatalKelas" class="py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-sm font-semibold">Batal</button>
+      <button id="btnSimpanKelas" class="py-2.5 rounded-lg bg-hijau text-white text-sm font-semibold disabled:opacity-60">Simpan</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- FITUR BARU: Modal Tambah User -->
 <div id="modalTambahUser" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4">
@@ -173,8 +201,8 @@
       <option value="Santri">Santri</option>
     </select>
 
-    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Halaqoh</label>
-    <select id="formHalaqoh" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-3">
+    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Kelas</label>
+    <select id="formKelas" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-3">
       <option value="">- (opsional) -</option>
     </select>
 
@@ -226,10 +254,13 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 
 /* ====== FITUR BARU: MANAJEMEN USER (khusus SuperAdmin) ====== */
 let userList = [];
+let kelasList = []; //FITUR BARU — daftar kelas dari sheet Kelas, dipakai bareng di beberapa dropdown
 
 if(currentUser && currentUser.role === 'SuperAdmin'){
   document.getElementById('userManagementSection').classList.remove('hidden'); //FITUR BARU — tombol & tabel hanya untuk SuperAdmin
+  document.getElementById('kelasManagementSection').classList.remove('hidden');
   loadUserTable();
+  loadKelasList();
 }
 
 async function loadUserTable(){
@@ -249,7 +280,7 @@ async function loadUserTable(){
         <td class="py-2 px-2 font-medium">${escapeHtml(u.username)}</td>
         <td class="py-2 px-2">${escapeHtml(u.nama || '-')}</td>
         <td class="py-2 px-2">${escapeHtml(u.role)}</td>
-        <td class="py-2 px-2">${escapeHtml(u.halaqoh || '-')}</td>
+        <td class="py-2 px-2">${escapeHtml(u.kelas || '-')}</td>
         <td class="py-2 px-2">${escapeHtml(u.no_hp || '-')}</td>
       </tr>
     `).join('');
@@ -265,7 +296,7 @@ async function loadUserTable(){
 const modalTambahUser = document.getElementById('modalTambahUser');
 document.getElementById('btnTambahUser').addEventListener('click', () => {
   resetUserForm();
-  populateHalaqohDropdownForModal();
+  populateKelasDropdown(document.getElementById('formKelas'));
   modalTambahUser.classList.remove('hidden');
 });
 document.getElementById('btnCloseModal').addEventListener('click', closeUserModal);
@@ -275,16 +306,15 @@ function closeUserModal(){ modalTambahUser.classList.add('hidden'); }
 function resetUserForm(){
   ['formUsername','formPin','formNama','formNoHp'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('formRole').value = 'Ustadz';
-  document.getElementById('formHalaqoh').value = '';
+  document.getElementById('formKelas').value = '';
   document.getElementById('usernameError').classList.add('hidden');
   document.getElementById('formError').classList.add('hidden');
 }
 
-function populateHalaqohDropdownForModal(){
-  const sel = document.getElementById('formHalaqoh');
-  sel.innerHTML = '<option value="">- (opsional) -</option>';
-  const halaqohSet = [...new Set(allSantri.map(s => s.halaqoh).filter(Boolean))].sort();
-  halaqohSet.forEach(h => sel.insertAdjacentHTML('beforeend', `<option value="${h}">${h}</option>`));
+//FITUR BARU — isi dropdown kelas dari daftar kelas resmi (sheet Kelas), bukan dari data santri lagi
+function populateKelasDropdown(selectEl){
+  selectEl.innerHTML = '<option value="">- (opsional) -</option>';
+  kelasList.forEach(k => selectEl.insertAdjacentHTML('beforeend', `<option value="${k}">${k}</option>`));
 }
 
 /* ---- Validasi username duplikat (real-time, sebelum submit ke server) ---- */
@@ -300,7 +330,7 @@ document.getElementById('btnSimpanUser').addEventListener('click', async () => {
   const pin = document.getElementById('formPin').value.trim();
   const nama = document.getElementById('formNama').value.trim();
   const role = document.getElementById('formRole').value;
-  const halaqoh = document.getElementById('formHalaqoh').value;
+  const kelas = document.getElementById('formKelas').value;
   const noHp = document.getElementById('formNoHp').value.trim();
   const errorEl = document.getElementById('formError');
   errorEl.classList.add('hidden');
@@ -322,7 +352,7 @@ document.getElementById('btnSimpanUser').addEventListener('click', async () => {
   try{
     const result = await callApi({
       action: 'tambahUser', requesterRole: currentUser.role,
-      username, pin, nama, role, halaqoh, no_hp: noHp
+      username, pin, nama, role, kelas, no_hp: noHp
     });
     if(result.status !== 'ok'){
       errorEl.textContent = result.message || result.error || 'Gagal menambahkan user (tidak ada pesan error dari server).';
@@ -331,6 +361,81 @@ document.getElementById('btnSimpanUser').addEventListener('click', async () => {
     }
     closeUserModal();
     await loadUserTable(); //FITUR BARU — reload tabel otomatis setelah simpan
+  } catch(err){
+    errorEl.textContent = err.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Simpan';
+  }
+});
+
+/* ====== FITUR BARU: MANAJEMEN KELAS (khusus SuperAdmin) ====== */
+async function loadKelasList(){
+  const wrap = document.getElementById('kelasListWrap');
+  const empty = document.getElementById('kelasListEmpty');
+  const loading = document.getElementById('kelasListLoading');
+  loading.classList.remove('hidden');
+  empty.classList.add('hidden');
+  wrap.innerHTML = '';
+  try{
+    const result = await callApi({ action: 'getKelasList' });
+    if(!result.ok) throw new Error(result.error || 'Gagal memuat daftar kelas');
+    kelasList = result.data || [];
+    if(!kelasList.length){ empty.classList.remove('hidden'); return; }
+    wrap.innerHTML = kelasList.map(k => `
+      <span class="inline-flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full bg-hijau/10 text-hijau text-xs font-semibold">
+        ${escapeHtml(k)}
+        <button type="button" class="btn-hapus-kelas text-hijau/60 hover:text-red-500" data-kelas="${escapeAttr(k)}" title="Hapus kelas">✕</button>
+      </span>
+    `).join('');
+    wrap.querySelectorAll('.btn-hapus-kelas').forEach(btn => {
+      btn.addEventListener('click', () => hapusKelas(btn.dataset.kelas));
+    });
+  } catch(err){
+    empty.textContent = err.message;
+    empty.classList.remove('hidden');
+  } finally {
+    loading.classList.add('hidden');
+  }
+}
+
+async function hapusKelas(nama){
+  if(!confirm(`Hapus kelas "${nama}"? Data santri yang sudah pakai nama kelas ini tidak akan berubah, cuma hilang dari daftar pilihan.`)) return;
+  try{
+    const result = await callApi({ action: 'hapusKelas', requesterRole: currentUser.role, nama });
+    if(result.status !== 'ok'){ alert(result.message || 'Gagal menghapus kelas.'); return; }
+    await loadKelasList();
+  } catch(err){
+    alert('Gagal menghapus kelas: ' + err.message);
+  }
+}
+
+const modalTambahKelas = document.getElementById('modalTambahKelas');
+document.getElementById('btnTambahKelas').addEventListener('click', () => {
+  document.getElementById('formNamaKelas').value = '';
+  document.getElementById('kelasFormError').classList.add('hidden');
+  modalTambahKelas.classList.remove('hidden');
+});
+document.getElementById('btnCloseModalKelas').addEventListener('click', () => modalTambahKelas.classList.add('hidden'));
+document.getElementById('btnBatalKelas').addEventListener('click', () => modalTambahKelas.classList.add('hidden'));
+
+document.getElementById('btnSimpanKelas').addEventListener('click', async () => {
+  const nama = document.getElementById('formNamaKelas').value.trim();
+  const errorEl = document.getElementById('kelasFormError');
+  errorEl.classList.add('hidden');
+  if(!nama){ errorEl.textContent = 'Nama kelas wajib diisi.'; errorEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('btnSimpanKelas');
+  btn.disabled = true; btn.textContent = 'Menyimpan...'; //FITUR BARU loading state
+  try{
+    const result = await callApi({ action: 'tambahKelas', requesterRole: currentUser.role, nama });
+    if(result.status !== 'ok'){
+      errorEl.textContent = result.message || 'Gagal menambahkan kelas.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    modalTambahKelas.classList.add('hidden');
+    await loadKelasList(); //FITUR BARU — reload otomatis setelah simpan
   } catch(err){
     errorEl.textContent = err.message;
     errorEl.classList.remove('hidden');
@@ -367,8 +472,8 @@ let allSantri = [];
 async function loadDashboard(){
   showSkeleton();
   try{
-    const halaqohFilter = currentUser && currentUser.role === 'Ustadz' ? currentUser.halaqoh : '';
-    const result = await callApi({ action: 'getData', role: currentUser?.role, halaqoh: halaqohFilter });
+    const kelasFilter = currentUser && currentUser.role === 'Ustadz' ? currentUser.kelas : '';
+    const result = await callApi({ action: 'getData', role: currentUser?.role, kelas: kelasFilter });
     if(!result.ok) throw new Error(result.error || 'Gagal memuat data santri');
     allSantri = result.data || [];
     populateFilters(allSantri);
@@ -416,26 +521,21 @@ function renderStats(list){
 /* ====== FILTERS ====== */
 function populateFilters(list){
   const kelasSel = document.getElementById('filterKelas');
-  const halaqohSel = document.getElementById('filterHalaqoh');
   const kelasSet = [...new Set(list.map(s => s.kelas).filter(Boolean))].sort();
-  const halaqohSet = [...new Set(list.map(s => s.halaqoh).filter(Boolean))].sort();
   kelasSet.forEach(k => kelasSel.insertAdjacentHTML('beforeend', `<option value="${k}">${k}</option>`));
-  halaqohSet.forEach(h => halaqohSel.insertAdjacentHTML('beforeend', `<option value="${h}">${h}</option>`));
 }
 
 function getFiltered(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const kelas = document.getElementById('filterKelas').value;
-  const halaqoh = document.getElementById('filterHalaqoh').value;
   return allSantri.filter(s => {
     if(q && !String(s.nama || '').toLowerCase().includes(q)) return false;
     if(kelas && s.kelas !== kelas) return false;
-    if(halaqoh && s.halaqoh !== halaqoh) return false;
     return true;
   });
 }
 
-['searchInput','filterKelas','filterHalaqoh'].forEach(id => {
+['searchInput','filterKelas'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => renderGrid(getFiltered()));
   document.getElementById(id).addEventListener('change', () => renderGrid(getFiltered()));
 });
@@ -475,7 +575,7 @@ function renderGrid(list){
             <div class="font-semibold text-sm leading-tight line-clamp-2">${escapeHtml(s.nama || '(tanpa nama)')}</div>
             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}">${badge.label}</span>
           </div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">${escapeHtml(s.kelas || '-')} · ${escapeHtml(s.halaqoh || '-')}</div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">${escapeHtml(s.kelas || '-')}</div>
           <div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-1.5">
             <div class="h-full bg-hijau rounded-full" style="width:${persen}%"></div>
           </div>
@@ -562,9 +662,9 @@ async function loadMonthlyChart(){
 document.getElementById('exportBtn').addEventListener('click', () => {
   const list = getFiltered();
   if(!list.length){ alert('Tidak ada data untuk diekspor.'); return; }
-  const headers = ['Nama','Kelas','Halaqoh','Target','Tercapai','Persen','Poin','Status'];
+  const headers = ['Nama','Kelas','Target','Tercapai','Persen','Poin','Status'];
   const rows = list.map(s => [
-    s.nama || '', s.kelas || '', s.halaqoh || '', s.target || 0, s.tercapai || 0,
+    s.nama || '', s.kelas || '', s.target || 0, s.tercapai || 0,
     persenOf(s) + '%', s.poin || 0, statusBadge(s).label
   ]);
   const csv = [headers, ...rows]
