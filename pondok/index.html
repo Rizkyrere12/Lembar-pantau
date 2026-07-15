@@ -118,7 +118,79 @@
   <div id="emptyState" class="hidden text-center py-16 text-slate-400 text-sm">Tidak ada santri yang cocok dengan pencarian/filter.</div>
   <div id="errorState" class="hidden text-center py-16 text-red-500 text-sm px-6"></div>
 
+  <!-- FITUR BARU: Manajemen User — cuma tampil untuk SuperAdmin -->
+  <div id="userManagementSection" class="hidden mt-8">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-bold">👤 Manajemen User</h2>
+      <button id="btnTambahUser" class="px-3 py-2 rounded-lg bg-hijau text-white text-xs font-semibold shadow-sm">+ Tambah User</button>
+    </div>
+    <div class="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-left text-slate-400 border-b border-slate-100 dark:border-slate-700">
+              <th class="py-2 px-2">Username</th>
+              <th class="py-2 px-2">Nama</th>
+              <th class="py-2 px-2">Role</th>
+              <th class="py-2 px-2">Halaqoh</th>
+              <th class="py-2 px-2">No HP</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+      </div>
+      <div id="userTableEmpty" class="hidden text-center text-xs text-slate-400 py-6">Belum ada user.</div>
+      <div id="userTableLoading" class="hidden text-center text-xs text-slate-400 py-6">Memuat...</div>
+    </div>
+  </div>
+
 </main>
+
+<!-- FITUR BARU: Modal Tambah User -->
+<div id="modalTambahUser" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm p-5 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-sm">Tambah User Baru</h3>
+      <button id="btnCloseModal" class="text-slate-400 text-lg leading-none">✕</button>
+    </div>
+
+    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Username</label>
+    <input id="formUsername" type="text" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-1" placeholder="username">
+    <p id="usernameError" class="text-[11px] text-red-500 mb-2 hidden">Username sudah dipakai.</p>
+
+    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">PIN (6 digit)</label>
+    <input id="formPin" type="text" inputmode="numeric" maxlength="6" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-3" placeholder="123456">
+
+    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Nama</label>
+    <input id="formNama" type="text" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-3" placeholder="Nama lengkap">
+
+    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Role</label>
+    <select id="formRole" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-3">
+      <option value="Ustadz">Ustadz</option>
+      <option value="Admin">Admin</option>
+      <option value="SuperAdmin">SuperAdmin</option>
+      <option value="Wali">Wali Santri</option>
+      <option value="Santri">Santri</option>
+    </select>
+
+    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Halaqoh</label>
+    <select id="formHalaqoh" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-3">
+      <option value="">- (opsional) -</option>
+    </select>
+
+    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">No HP</label>
+    <input id="formNoHp" type="text" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm mb-1" placeholder="628xxxxxxxxx">
+    <p class="text-[10px] text-slate-400 mb-4">Dipakai untuk kirim OTP WA (kalau role SuperAdmin/Admin).</p>
+
+    <p id="formError" class="text-xs text-red-500 mb-3 hidden"></p>
+
+    <div class="grid grid-cols-2 gap-2">
+      <button id="btnBatalUser" class="py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-sm font-semibold">Batal</button>
+      <button id="btnSimpanUser" class="py-2.5 rounded-lg bg-hijau text-white text-sm font-semibold disabled:opacity-60">Simpan</button>
+    </div>
+  </div>
+</div>
+
 
 <script>
 /* ====== KONFIGURASI ====== */
@@ -150,6 +222,121 @@ if(currentUser && NAVBAR_ALLOWED_ROLES.includes(currentUser.role)){
 document.getElementById('logoutBtn').addEventListener('click', () => {
   sessionStorage.removeItem('pondok_user');
   window.location.href = 'login.html';
+});
+
+/* ====== FITUR BARU: MANAJEMEN USER (khusus SuperAdmin) ====== */
+let userList = [];
+
+if(currentUser && currentUser.role === 'SuperAdmin'){
+  document.getElementById('userManagementSection').classList.remove('hidden'); //FITUR BARU — tombol & tabel hanya untuk SuperAdmin
+  loadUserTable();
+}
+
+async function loadUserTable(){
+  const body = document.getElementById('userTableBody');
+  const empty = document.getElementById('userTableEmpty');
+  const loading = document.getElementById('userTableLoading');
+  loading.classList.remove('hidden');
+  empty.classList.add('hidden');
+  body.innerHTML = '';
+  try{
+    const result = await callApi({ action: 'getUsers', requesterRole: currentUser.role });
+    if(!result.ok) throw new Error(result.error || 'Gagal memuat daftar user');
+    userList = result.data || [];
+    if(!userList.length){ empty.classList.remove('hidden'); return; }
+    body.innerHTML = userList.map(u => `
+      <tr class="border-b border-slate-50 dark:border-slate-800">
+        <td class="py-2 px-2 font-medium">${escapeHtml(u.username)}</td>
+        <td class="py-2 px-2">${escapeHtml(u.nama || '-')}</td>
+        <td class="py-2 px-2">${escapeHtml(u.role)}</td>
+        <td class="py-2 px-2">${escapeHtml(u.halaqoh || '-')}</td>
+        <td class="py-2 px-2">${escapeHtml(u.no_hp || '-')}</td>
+      </tr>
+    `).join('');
+  } catch(err){
+    empty.textContent = err.message;
+    empty.classList.remove('hidden');
+  } finally {
+    loading.classList.add('hidden');
+  }
+}
+
+/* ---- Modal open/close ---- */
+const modalTambahUser = document.getElementById('modalTambahUser');
+document.getElementById('btnTambahUser').addEventListener('click', () => {
+  resetUserForm();
+  populateHalaqohDropdownForModal();
+  modalTambahUser.classList.remove('hidden');
+});
+document.getElementById('btnCloseModal').addEventListener('click', closeUserModal);
+document.getElementById('btnBatalUser').addEventListener('click', closeUserModal);
+function closeUserModal(){ modalTambahUser.classList.add('hidden'); }
+
+function resetUserForm(){
+  ['formUsername','formPin','formNama','formNoHp'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('formRole').value = 'Ustadz';
+  document.getElementById('formHalaqoh').value = '';
+  document.getElementById('usernameError').classList.add('hidden');
+  document.getElementById('formError').classList.add('hidden');
+}
+
+function populateHalaqohDropdownForModal(){
+  const sel = document.getElementById('formHalaqoh');
+  sel.innerHTML = '<option value="">- (opsional) -</option>';
+  const halaqohSet = [...new Set(allSantri.map(s => s.halaqoh).filter(Boolean))].sort();
+  halaqohSet.forEach(h => sel.insertAdjacentHTML('beforeend', `<option value="${h}">${h}</option>`));
+}
+
+/* ---- Validasi username duplikat (real-time, sebelum submit ke server) ---- */
+document.getElementById('formUsername').addEventListener('input', (e) => {
+  const val = e.target.value.trim().toLowerCase();
+  const dupe = userList.some(u => String(u.username).toLowerCase() === val);
+  document.getElementById('usernameError').classList.toggle('hidden', !dupe || !val);
+});
+
+/* ---- Simpan user baru ---- */
+document.getElementById('btnSimpanUser').addEventListener('click', async () => {
+  const username = document.getElementById('formUsername').value.trim();
+  const pin = document.getElementById('formPin').value.trim();
+  const nama = document.getElementById('formNama').value.trim();
+  const role = document.getElementById('formRole').value;
+  const halaqoh = document.getElementById('formHalaqoh').value;
+  const noHp = document.getElementById('formNoHp').value.trim();
+  const errorEl = document.getElementById('formError');
+  errorEl.classList.add('hidden');
+
+  if(!username || !pin || !role){
+    errorEl.textContent = 'Username, PIN, dan Role wajib diisi.';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  // Validasi duplikat di client dulu (UX cepat) — backend tetap validasi ulang demi keamanan
+  if(userList.some(u => String(u.username).toLowerCase() === username.toLowerCase())){
+    document.getElementById('usernameError').classList.remove('hidden');
+    return;
+  }
+
+  const btn = document.getElementById('btnSimpanUser');
+  btn.disabled = true; btn.textContent = 'Menyimpan...'; //FITUR BARU loading state
+
+  try{
+    const result = await callApi({
+      action: 'tambahUser', requesterRole: currentUser.role,
+      username, pin, nama, role, halaqoh, no_hp: noHp
+    });
+    if(result.status !== 'ok'){
+      errorEl.textContent = result.message || 'Gagal menambahkan user.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    closeUserModal();
+    await loadUserTable(); //FITUR BARU — reload tabel otomatis setelah simpan
+  } catch(err){
+    errorEl.textContent = err.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Simpan';
+  }
 });
 
 /* ====== DARK MODE ====== */
